@@ -30,3 +30,43 @@ model Session {
   collaborator  Boolean?  @default(false)
   emailVerified Boolean?  @default(false)
 }
+
+
+model Region {
+  id         Int      @id @default(autoincrement())
+  name       String
+  code       String
+  commune_id Int?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  communes   Commune[]
+
+  @@map("regions")
+}
+
+model Commune {
+  id        Int    @id @default(autoincrement())
+  name      String
+  isActive   Boolean  @default(true)
+  region_id Int
+  tax_id    Int
+  region    Region @relation(fields: [region_id], references: [id])
+  tax       Tax    @relation(fields: [tax_id], references: [id])
+
+  @@map("communes")
+}
+
+model Tax {
+  id              Int           @id @default(autoincrement())
+  name            String
+  value           Float
+  description     String
+  isActive        Boolean       @default(true)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  communes        Commune[]
+
+  @@map("taxes")
+}
+

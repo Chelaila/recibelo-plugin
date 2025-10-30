@@ -1,0 +1,216 @@
+/* Estilos para la página de impuestos/tarifas */
+
+.loadingContainer {
+  text-align: center;
+  padding: 40px;
+}
+
+.loadingText {
+  font-size: 16px;
+  color: #6c757d;
+}
+
+.filterContainer {
+  margin-bottom: 20px;
+}
+
+.filterLabel {
+  margin-right: 12px;
+  font-weight: bold;
+}
+
+.filterSelect {
+  padding: 8px 12px;
+  border-radius: 4px;
+  border: 1px solid #ced4da;
+  font-size: 14px;
+}
+
+.tableContainer {
+  margin-top: 20px;
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.tableHeader {
+  background-color: #f8f9fa;
+}
+
+.tableHeaderCell {
+  padding: 16px;
+  text-align: left;
+  font-weight: bold;
+  font-size: 14px;
+  color: #495057;
+  border-bottom: 2px solid #dee2e6;
+}
+
+.tableHeaderCellCenter {
+  padding: 16px;
+  text-align: center;
+  font-weight: bold;
+  font-size: 14px;
+  color: #495057;
+  border-bottom: 2px solid #dee2e6;
+}
+
+.tableHeaderCellActions {
+  padding: 16px;
+  text-align: center;
+  font-weight: bold;
+  font-size: 14px;
+  color: #495057;
+  border-bottom: 2px solid #dee2e6;
+  width: 120px;
+}
+
+.tableRow {
+  border-bottom: 1px solid #dee2e6;
+  background-color: white;
+  opacity: 1;
+}
+
+.tableRowEditing {
+  border-bottom: 1px solid #dee2e6;
+  background-color: #fff3cd;
+  opacity: 1;
+}
+
+.tableRowInactive {
+  border-bottom: 1px solid #dee2e6;
+  background-color: white;
+  opacity: 0.6;
+}
+
+.tableCell {
+  padding: 16px;
+  font-size: 14px;
+  color: #495057;
+}
+
+.tableCellSecondary {
+  padding: 16px;
+  font-size: 14px;
+  color: #6c757d;
+}
+
+.tableCellCenter {
+  padding: 16px;
+  text-align: center;
+}
+
+.comunaInfo {
+  font-weight: bold;
+  color: #212529;
+}
+
+.comunaId {
+  font-size: 12px;
+  color: #6c757d;
+}
+
+.inputField {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.textareaField {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 14px;
+  resize: vertical;
+}
+
+.priceDisplay {
+  font-weight: bold;
+  color: #28a745;
+}
+
+.descriptionDisplay {
+  max-width: 200px;
+  word-wrap: break-word;
+}
+
+.statusBadge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.statusActive {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.statusInactive {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+.actionsContainer {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.button {
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.buttonSave {
+  background-color: #28a745;
+  color: white;
+}
+
+.buttonCancel {
+  background-color: #6c757d;
+  color: white;
+}
+
+.buttonEdit {
+  background-color: #007bff;
+  color: white;
+}
+
+.buttonToggle {
+  color: white;
+}
+
+.buttonToggleActive {
+  background-color: #dc3545;
+}
+
+.buttonToggleInactive {
+  background-color: #28a745;
+}
+
+.emptyState {
+  text-align: center;
+  padding: 40px;
+  color: #6c757d;
+  font-size: 16px;
+}
+
+.totalInfo {
+  margin-top: 20px;
+  font-size: 14px;
+  color: #6c757d;
+}

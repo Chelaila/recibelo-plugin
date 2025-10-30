@@ -1,0 +1,162 @@
+/* Estilos para la página de servicio de transporte */
+
+.errorAlert {
+  background-color: #f8d7da;
+  color: #721c24;
+  padding: 12px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+  border: 1px solid #f5c6cb;
+}
+
+.successAlert {
+  background-color: #d4edda;
+  color: #155724;
+  padding: 12px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+  border: 1px solid #c3e6cb;
+}
+
+.statusContainer {
+  background-color: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.statusTitle {
+  margin-top: 0;
+  color: #495057;
+}
+
+.statusText {
+  margin: 8px 0;
+}
+
+.buttonsContainer {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.button {
+  border: none;
+  padding: 12px 24px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.buttonPrimary {
+  background-color: #007bff;
+  color: white;
+}
+
+.buttonSuccess {
+  background-color: #28a745;
+  color: white;
+}
+
+.buttonDisabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.sectionTitle {
+  color: #495057;
+  margin-bottom: 16px;
+}
+
+.tableContainer {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.tableHeader {
+  background-color: #f8f9fa;
+}
+
+.tableHeaderCell {
+  padding: 12px;
+  text-align: left;
+  font-weight: bold;
+  font-size: 14px;
+  color: #495057;
+  border-bottom: 2px solid #dee2e6;
+}
+
+.tableHeaderCellCenter {
+  padding: 12px;
+  text-align: center;
+  font-weight: bold;
+  font-size: 14px;
+  color: #495057;
+  border-bottom: 2px solid #dee2e6;
+}
+
+.tableRow {
+  border-bottom: 1px solid #dee2e6;
+}
+
+.tableRowLast {
+  border-bottom: none;
+}
+
+.tableCell {
+  padding: 12px;
+  font-size: 14px;
+  color: #495057;
+}
+
+.tableCellSecondary {
+  padding: 12px;
+  font-size: 14px;
+  color: #6c757d;
+}
+
+.tableCellCenter {
+  padding: 12px;
+  text-align: center;
+}
+
+.callbackUrl {
+  max-width: 300px;
+  word-break: break-all;
+}
+
+.statusBadge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.statusActive {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.statusInactive {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+.statusYes {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.statusNo {
+  background-color: #f8d7da;
+  color: #721c24;
+}
