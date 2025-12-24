@@ -71,8 +71,7 @@ export default function TaxesPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [hasNextPage, setHasNextPage] = useState(false);
   const [hasPreviousPage, setHasPreviousPage] = useState(false);
-
-  const itemsPerPage = 10;
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   useEffect(() => {
     const loadComunas = async () => {
@@ -156,7 +155,12 @@ export default function TaxesPage() {
   useEffect(() => {
     setHasNextPage(currentPage < totalPages);
     setHasPreviousPage(currentPage > 1);
-  }, [currentPage, totalPages]);
+  }, [currentPage, totalPages, itemsPerPage]);
+
+  // Resetear a página 1 cuando cambia itemsPerPage
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [itemsPerPage]);
 
   const handleRegionChange = (event: Event) => {
     const target = event.target as HTMLSelectElement;
@@ -268,6 +272,14 @@ export default function TaxesPage() {
           </s-grid-item>
         </s-grid>
 
+        <s-box paddingBlockStart="base" paddingBlockEnd="base">
+          <s-text tone="neutral">
+            <strong>Total comunas:</strong> {sortedComunas.length}
+            {searchTerm && ` (buscando: "${searchTerm}")`}
+            {selectedRegion && ` (filtrado por: ${selectedRegion})`}
+          </s-text>
+        </s-box>
+
         <s-section padding="none">
           <s-table
             paginate
@@ -354,13 +366,21 @@ export default function TaxesPage() {
           </s-box>
         )}
 
-        <s-box>
-          <s-text tone="neutral">
-            Mostrando {startIndex + 1}-
-            {Math.min(endIndex, sortedComunas.length)} de {sortedComunas.length}{" "}
-            comunas
-            {searchTerm && ` (buscando: "${searchTerm}")`}
-          </s-text>
+        <s-box paddingBlockStart="base">
+          <s-select
+            value={itemsPerPage.toString()}
+            onChange={(event: Event) => {
+              const target = event.target as HTMLSelectElement;
+              setItemsPerPage(Number(target.value));
+            }}
+            style={{ width: '110px', minWidth: '110px' }}
+          >
+            <s-option value="10">10</s-option>
+            <s-option value="25">25</s-option>
+            <s-option value="50">50</s-option>
+            <s-option value="100">100</s-option>
+            <s-option value="500">500</s-option>
+          </s-select>
         </s-box>
       </s-section>
       {/* Rutas hijas */}

@@ -27,23 +27,27 @@ export async function action({ request }: ActionFunctionArgs) {
     const { destination } = body.rate;
     
     // Solo procesar envíos a Chile
-    if (destination.country !== 'CL') {
+    const country = destination.country || destination.countryCode || destination.country_code;
+    if (country !== 'CL') {
       return new Response(JSON.stringify({ rates: [] }), { 
         status: 200, 
         headers: { 'Content-Type': 'application/json' } 
       });
     }
 
-    if(destination.province !== 'RM') {
+    // Solo procesar Región Metropolitana
+    const province = destination.province || destination.zoneCode || destination.zone_code;
+    if (province !== 'RM') {
       return new Response(JSON.stringify({ rates: [] }), { 
         status: 200, 
         headers: { 'Content-Type': 'application/json' } 
       });
     }
 
-    const comunaTarifa = await getComunaTarifaByCity(destination.city || '');
+    const cityName = destination.city || '';
+    const comunaTarifa = await getComunaTarifaByCity(cityName);
 
-    if (!comunaTarifa || !comunaTarifa.isActive) {
+    if (!comunaTarifa || !comunaTarifa.isActive || !comunaTarifa.tax?.isActive) {
       return new Response(JSON.stringify({ rates: [] }), { 
         status: 200, 
         headers: { 'Content-Type': 'application/json' } 
@@ -52,19 +56,23 @@ export async function action({ request }: ActionFunctionArgs) {
     
     // Obtener tarifa para la comuna específica
     const tarifaComuna = comunaTarifa.tax?.value || 0;
-    
+    const totalPrice = (tarifaComuna * 100).toString();
 
-    // Crear respuesta
+    // Crear respuesta con descripción de la tarifa
+    // Priorizar la descripción de la tarifa, si no existe usar el nombre de la tarifa
+    const description = comunaTarifa.tax?.description || comunaTarifa.tax?.name || 'Envío Recibelo';
+    
     const rates = [
       {
         service_name: "Recibelo",
         service_code: "recibelo",
-        total_price: (tarifaComuna * 100).toString(),
-        description: comunaTarifa.tax?.name || '',
+        total_price: totalPrice,
+        description: description,
         currency: "CLP",
         phone_required: true
       }
     ];
+    
     return new Response(JSON.stringify({ rates }), { 
       status: 200, 
       headers: { 'Content-Type': 'application/json' } 

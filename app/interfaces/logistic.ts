@@ -2,20 +2,24 @@
 
 export interface LogisticCenter {
   id: number;
+  externalId: number;
   name: string;
   address: string;
-  address_geocoded: string | null;
   detail: string | null;
   responsable: string;
   email: string;
   phone: string;
   active: boolean;
-  commune_id: number;
-  client_id: number;
   created_at: string;
   updated_at: string;
-  volume_id: number | null;
-  css_mails: string | null;
+  commune_id: number;
+  accessToken?: string | null;
+  baseUrl?: string | null;
+}
+
+export interface BackendUrlOption {
+  value: string;
+  label: string;
 }
 
 export interface ApiResponse {

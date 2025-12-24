@@ -32,32 +32,34 @@ async function main() {
 
     // Procesar comunas de la región
     for (const communeData of regionData.communes) {
-      console.log(`  🏘️  Procesando comuna: ${communeData.name}`)
+      if (regionData.id === "RM"){
+        console.log(`  🏘️  Procesando comuna: ${communeData.name}`)
       
-      // Calcular tarifa de envío
-      const shippingRate = 2500;
-      const description = "Envio entre 1 y 2 dias habiles";
-      // Crear tarifa de envío
-      const tax = await prisma.tax.create({
-        data: {
-          name: `Envío ${communeData.name}`,
-          value: shippingRate,
-          description: description,
-          isActive: true
-        }
-      })
-      
-      createdTaxes[`${regionData.name}-${communeData.name}`] = tax.id
-
-      // Crear comuna
-      await prisma.commune.create({
-        data: {
-          name: communeData.name,
-          isActive: true,
-          region_id: region.id,
-          tax_id: tax.id
-        }
-      })
+        // Calcular tarifa de envío
+        const shippingRate = 2500;
+        const description = "Envio entre 1 y 2 dias habiles";
+        // Crear tarifa de envío
+        const tax = await prisma.tax.create({
+          data: {
+            name: `Envío ${communeData.name}`,
+            value: shippingRate,
+            description: description,
+            isActive: true
+          }
+        })
+        
+        createdTaxes[`${regionData.name}-${communeData.name}`] = tax.id
+  
+        // Crear comuna
+        await prisma.commune.create({
+          data: {
+            name: communeData.name,
+            isActive: true,
+            region_id: region.id,
+            tax_id: tax.id
+          }
+        })
+      }
     }
   }
 

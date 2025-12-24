@@ -19,8 +19,11 @@ export default function App() {
     <AppProvider embedded apiKey={apiKey}>
       <s-app-nav>
         <s-link href="/app">Home</s-link>
-        <s-link href="/app/configuration">Configuración</s-link>
         <s-link href="/app/taxes">Tarifario</s-link>
+        {/* MVP 2: Tabs comentados - No se usarán en MVP 2 */}
+        {/* <s-link href="/app/configuration">Configuración</s-link> */}
+        {/* <s-link href="/app/logs">Logs de Auditoría</s-link> */}
+        {/* <s-link href="/app/test-webhook">Probar Webhook</s-link> */}
       </s-app-nav>
       <Outlet />
     </AppProvider>

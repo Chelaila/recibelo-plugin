@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react';
 import { useLoaderData } from 'react-router';
-import { LogisticCenter, ApiResponse, CarrierService } from '../../interfaces';
+import { CarrierService } from '../../interfaces';
 
-import type { LoaderFunctionArgs } from "react-router";
+import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
 import { authenticate } from "../../shopify.server";
-import { getCarrierServices } from "../../utils/carrierService";
+import { getCarrierServices, createCarrierService, updateCarrierService } from "../../utils/carrierService";
+import prisma from "../../db.server";
+import LogisticCenterSection from '../../components/LogisticCenterSection';
+import CarrierServiceSection from '../../components/CarrierServiceSection';
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
     const { session } = await authenticate.admin(request);
@@ -16,12 +18,78 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }
 
     try {
-        const carrierServices = await getCarrierServices(shop, accessToken as string);
+        // 1) Obtener lista actual
+        let carrierServices = await getCarrierServices(shop, accessToken as string);
+
+        // 2) Asegurar existencia/config correcta del servicio de Recibelo (idempotente)
+        const desiredCallbackUrl = `${process.env.SHOPIFY_APP_URL}/api/shipping-rates`;
+        const existing = carrierServices?.find((service: CarrierService) => 
+            service.name?.toLowerCase().includes('recibelo')
+        );
+
+        try {
+            if (!existing) {
+                console.log('📦 Creating carrier service...');
+                await createCarrierService(shop, accessToken as string, {
+                    name: 'Recibelo - Servicio de Envío',
+                    callbackUrl: desiredCallbackUrl,
+                    serviceDiscovery: true,
+                });
+                console.log('✅ Carrier service created successfully');
+            } else {
+                const needsUpdate =
+                    existing.callbackUrl !== desiredCallbackUrl ||
+                    existing.active !== true ||
+                    existing.supportsServiceDiscovery !== true;
+
+                if (needsUpdate) {
+                    console.log('📦 Updating carrier service...');
+                    await updateCarrierService(shop, accessToken as string, existing.id, {
+                        callbackUrl: desiredCallbackUrl,
+                        serviceDiscovery: true,
+                    });
+                    console.log('✅ Carrier service updated successfully');
+                } else {
+                    console.log('✅ Carrier service is already configured correctly');
+                }
+            }
+        } catch (ensureError) {
+            console.error('❌ Configuration Loader: Error ensuring carrier service:', ensureError);
+            // No lanzar el error, solo loguearlo para que la página pueda cargar
+            // El usuario puede usar el botón manual en la UI
+        }
+
+        // 3) Refrescar lista tras asegurar
+        carrierServices = await getCarrierServices(shop, accessToken as string);
+
+        // 4) Obtener centro logístico guardado para esta tienda
+        const savedLogisticCenter = await prisma.logisticCenter.findFirst({
+            where: { shop }
+        });
+
         return { 
             shop, 
             accessToken, 
             carrierServices, 
-            baseUrl: process.env.SHOPIFY_APP_URL 
+            baseUrl: process.env.SHOPIFY_APP_URL,
+            stagingBackendUrl: process.env.STAGING_BACKEND_URL || 'https://staging-api.recibelo.cl',
+            productionBackendUrl: process.env.PRODUCTION_BACKEND_URL || 'https://app.recibelo.cl',
+            savedLogisticCenter: savedLogisticCenter ? {
+                id: savedLogisticCenter.externalId,
+                externalId: savedLogisticCenter.externalId,
+                name: savedLogisticCenter.name,
+                address: savedLogisticCenter.address,
+                detail: savedLogisticCenter.detail,
+                responsable: savedLogisticCenter.responsable,
+                email: savedLogisticCenter.email,
+                phone: savedLogisticCenter.phone,
+                active: savedLogisticCenter.active,
+                commune_id: savedLogisticCenter.communeId,
+                created_at: savedLogisticCenter.createdAt.toISOString(),
+                updated_at: savedLogisticCenter.updatedAt.toISOString(),
+                accessToken: savedLogisticCenter.accessToken || null,
+                baseUrl: savedLogisticCenter.baseUrl || null,
+            } : null
         };
     } catch (error) {
         console.error('❌ Configuration Loader: Error loading carrier services:', error);
@@ -30,277 +98,123 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             accessToken,
             carrierServices: [],
             baseUrl: process.env.SHOPIFY_APP_URL,
+            stagingBackendUrl: process.env.STAGING_BACKEND_URL || 'https://staging-api.recibelo.cl',
+            productionBackendUrl: process.env.PRODUCTION_BACKEND_URL || 'https://app.recibelo.cl',
+            savedLogisticCenter: null,
             error: error instanceof Error ? error.message : 'Unknown error loading carrier services'
         };
     }
 };
 
-export default function ConfigurationPage() {
-  const { carrierServices, baseUrl } = useLoaderData<typeof loader>();
-  const [logisticCenters, setLogisticCenters] = useState<LogisticCenter[]>([]);
-  const [selectedCenter, setSelectedCenter] = useState<string>('');
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  
-  // Estados para Carrier Service
-  const [isCarrierConfigured, setIsCarrierConfigured] = useState(false);
-  const [carrierLoading, setCarrierLoading] = useState(false);
-  const [carrierError, setCarrierError] = useState<string | null>(null);
-  const [carrierSuccess, setCarrierSuccess] = useState<string | null>(null);
+export const action = async ({ request }: ActionFunctionArgs) => {
+    const { session } = await authenticate.admin(request);
+    if (!session) {
+        return new Response("Unauthorized", { status: 401 });
+    }
 
-  useEffect(() => {
-    const fetchLogisticCenters = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        const response = await fetch('https://staging-api.recibelo.cl/api/$2y$10$iyceB40qkj.Y4YsiQclyOTubMqm5M5phhALqO7pvxv5Q2uS6h36u/logistics_center');
-        
-        if (!response.ok) {
-          throw new Error(`Error en la petición: ${response.status}`);
+    const shop = session.shop;
+    const formData = await request.formData();
+    const intent = formData.get("intent");
+
+    try {
+        if (intent === "save_logistic_center") {
+            const centerData = JSON.parse(formData.get("centerData") as string);
+            const accessTokenValue = formData.get("accessToken");
+            const baseUrlValue = formData.get("baseUrl");
+            
+            // Normalizar el token: convertir string vacío a null, y mantener el valor si existe
+            const accessToken = accessTokenValue && typeof accessTokenValue === 'string' && accessTokenValue.trim() !== '' 
+                ? accessTokenValue.trim() 
+                : null;
+            
+            // Normalizar la baseUrl: convertir string vacío a null, y mantener el valor si existe
+            const baseUrl = baseUrlValue && typeof baseUrlValue === 'string' && baseUrlValue.trim() !== '' 
+                ? baseUrlValue.trim() 
+                : null;
+
+            console.log('🔐 Saving logistic center with token:', accessToken ? `${accessToken.substring(0, 10)}...` : 'null');
+            console.log('🌐 Saving logistic center with baseUrl:', baseUrl || 'null');
+
+            await prisma.logisticCenter.upsert({
+                where: {
+                    externalId_shop: {
+                        externalId: centerData.id,
+                        shop: shop
+                    }
+                },
+                create: {
+                    externalId: centerData.id,
+                    name: centerData.name,
+                    address: centerData.address,
+                    detail: centerData.detail || null,
+                    responsable: centerData.responsable,
+                    email: centerData.email,
+                    phone: centerData.phone,
+                    active: centerData.active ?? true,
+                    communeId: centerData.commune_id,
+                    shop: shop,
+                    accessToken: accessToken,
+                    baseUrl: baseUrl,
+                },
+                update: {
+                    externalId: centerData.id,
+                    name: centerData.name,
+                    address: centerData.address,
+                    detail: centerData.detail || null,
+                    responsable: centerData.responsable,
+                    email: centerData.email,
+                    phone: centerData.phone,
+                    active: centerData.active ?? true,
+                    communeId: centerData.commune_id,
+                    accessToken: accessToken,
+                    baseUrl: baseUrl,
+                }
+            });
+
+            return new Response(JSON.stringify({ success: true }), {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' }
+            });
         }
-        
-        const data: ApiResponse = await response.json();
-        setLogisticCenters(data.logistic_centers);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Error desconocido');
-        console.error('Error al obtener centros logísticos:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
 
-    fetchLogisticCenters();
-  }, []);
+        if (intent === "delete_logistic_center") {
+            await prisma.logisticCenter.deleteMany({
+                where: { shop }
+            });
 
-  // Verificar estado del Carrier Service
-  useEffect(() => {
-    const recibeloService = carrierServices?.find((service: CarrierService) => 
-      service.name?.toLowerCase().includes('recibelo')
-    );
-    setIsCarrierConfigured(!!recibeloService);
-  }, [carrierServices]);
+            return new Response(JSON.stringify({ success: true }), {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
 
-  const handleCenterChange = (event: Event) => {
-    const target = event.target as HTMLSelectElement;
-    setSelectedCenter(target.value);
-  };
-
-  // Funciones para manejar Carrier Service
-  const handleCreateCarrierService = async () => {
-    setCarrierLoading(true);
-    setCarrierError(null);
-    setCarrierSuccess(null);
-
-    try {
-      const callbackUrl = `${baseUrl}/api/shipping-rates`;
-      const formData = new FormData();
-      formData.append('action', 'create');
-      formData.append('name', 'Recibelo - Servicio de Envío');
-      formData.append('callbackUrl', callbackUrl);
-      formData.append('serviceDiscovery', 'true');
-
-      const response = await fetch('/api/carrier-service', {
-        method: 'POST',
-        body: formData
-      });
-
-      const result = await response.json();
-
-      if (!response.ok || !result.success) {
-        const errorMessage = result.error || 'Error al crear el Carrier Service';
-        throw new Error(errorMessage);
-      }
-
-      setCarrierSuccess('Servicio de Transporte creado exitosamente');
-      setIsCarrierConfigured(true);
-      
-      // Recargar la página para actualizar la lista
-      setTimeout(() => {
-        window.location.reload();
-      }, 2000);
-      
-    } catch (err) {
-      setCarrierError(err instanceof Error ? err.message : 'Error desconocido');
-    } finally {
-      setCarrierLoading(false);
+        return new Response(JSON.stringify({ error: 'Invalid intent' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' }
+        });
+    } catch (error) {
+        console.error('Error saving logistic center:', error);
+        return new Response(JSON.stringify({ 
+            error: error instanceof Error ? error.message : 'Unknown error' 
+        }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+        });
     }
-  };
+};
 
-  const handleUpdateCarrierService = async () => {
-    setCarrierLoading(true);
-    setCarrierError(null);
-    setCarrierSuccess(null);
-
-    try {
-      const recibeloService = carrierServices?.find((service: CarrierService) => 
-        service.name?.toLowerCase().includes('recibelo')
-      );
-
-      if (!recibeloService) {
-        throw new Error('No se encontró el Carrier Service de Recibelo');
-      }
-
-      const callbackUrl = `${baseUrl}/api/shipping-rates`;
-      console.log('🔍 Updating Carrier Service with callback URL:', callbackUrl);
-      
-      const formData = new FormData();
-      formData.append('action', 'update');
-      formData.append('id', recibeloService.id);
-      formData.append('callbackUrl', callbackUrl);
-      formData.append('serviceDiscovery', 'true');
-
-      const response = await fetch('/api/carrier-service', {
-        method: 'POST',
-        body: formData
-      });
-
-      const result = await response.json();
-
-      if (!response.ok || !result.success) {
-        const errorMessage = result.error || 'Error al actualizar el Carrier Service';
-        throw new Error(errorMessage);
-      }
-
-      setCarrierSuccess('Servicio de Transporte actualizado exitosamente');
-      
-    } catch (err) {
-      setCarrierError(err instanceof Error ? err.message : 'Error desconocido');
-    } finally {
-      setCarrierLoading(false);
-    }
-  };
+export default function ConfigurationPage() {
+  const { carrierServices, baseUrl, savedLogisticCenter } = useLoaderData<typeof loader>();
 
   return (
     <s-page heading="Configuración">
-      {/* Sección de Centros Logísticos */}
-      <s-section heading="Configuración de Centros Logísticos">
-        <s-paragraph>
-          Selecciona un centro logístico para configurar.
-        </s-paragraph>
-        
-        {loading && (
-          <s-box>
-            <s-stack>
-              <s-spinner size="base" />
-              <s-text>Cargando centros logísticos...</s-text>
-            </s-stack>
-          </s-box>
-        )}
-        
-        {error && (
-          <s-banner tone="critical">
-            <strong>Error:</strong> {error}
-          </s-banner>
-        )}
-        
-        {!loading && !error && (
-          <s-section>
-            <s-select
-              label="Centro Logístico"
-              value={selectedCenter}
-              onChange={handleCenterChange}
-            >
-              <s-option value="">Selecciona un centro logístico</s-option>
-              {logisticCenters.map((center) => (
-                <s-option key={center.id} value={center.id.toString()}>
-                  {center.name}
-                </s-option>
-              ))}
-            </s-select>
-
-            {selectedCenter && (
-              <s-section heading="Información del Centro Seleccionado">
-                {(() => {
-                  const center = logisticCenters.find(c => c.id.toString() === selectedCenter);
-                  return center ? (
-                    <>
-                      <s-paragraph><strong>Nombre:</strong> {center.name}</s-paragraph>
-                      <s-paragraph><strong>Dirección:</strong> {center.address}</s-paragraph>
-                      <s-paragraph><strong>Responsable:</strong> {center.responsable}</s-paragraph>
-                      <s-paragraph><strong>Email:</strong> {center.email}</s-paragraph>
-                      <s-paragraph><strong>Teléfono:</strong> {center.phone}</s-paragraph>
-                    </>
-                  ) : null;
-                })()}
-              </s-section>
-            )}
-          </s-section>
-        )}
-      </s-section>
-
-      {/* Sección de Servicio de Transporte */}
-      <s-section heading="Servicio de Transporte">
-        <s-paragraph>
-          Configura el Servicio de Transporte de Recibelo para integrar las tarifas de envío con Shopify.
-        </s-paragraph>
-
-        {carrierError && (
-          <s-banner tone="critical">
-            <strong>Error:</strong> {carrierError}
-          </s-banner>
-        )}
-
-        {carrierSuccess && (
-          <s-banner tone="success">
-            <strong>Éxito:</strong> {carrierSuccess}
-          </s-banner>
-        )}
-        <s-section>
-          <s-paragraph>
-            <strong>Estado:</strong> {isCarrierConfigured ? '✅ Configurado' : '❌ No configurado'}
-          </s-paragraph>
-          <s-paragraph>
-            <strong>Callback URL:</strong> {baseUrl}/api/shipping-rates
-          </s-paragraph>
-        </s-section>
-        <s-section heading="Acciones">
-          {!isCarrierConfigured ? (
-              <s-button
-                variant="primary"
-                onClick={handleCreateCarrierService}
-                disabled={carrierLoading}
-                loading={carrierLoading}
-              >
-                {carrierLoading ? 'Creando...' : 'Crear Servicio de Transporte'}
-              </s-button>
-            ) : (
-              <s-button
-                variant="primary"
-                onClick={handleUpdateCarrierService}
-                disabled={carrierLoading}
-                loading={carrierLoading}
-              >
-                {carrierLoading ? 'Actualizando...' : 'Actualizar Servicio de Transporte'}
-              </s-button>
-            )}
-        </s-section>
-
-        {carrierServices && carrierServices.length > 0 && (
-          <s-section>
-            <s-table>
-              <s-table-header-row>
-                <s-table-header listSlot="primary">Nombre</s-table-header>
-                <s-table-header listSlot="secondary">URL de Callback</s-table-header>
-                <s-table-header listSlot="labeled">Estado</s-table-header>
-              </s-table-header-row>
-              <s-table-body>
-                {carrierServices.map((service: CarrierService) => (
-                  <s-table-row key={service.id}>
-                    <s-table-cell>{service.name}</s-table-cell>
-                    <s-table-cell>{service.callbackUrl}</s-table-cell>
-                    <s-table-cell>
-                      <s-badge tone={service.active ? 'success' : 'critical'}>
-                        {service.active ? 'Activo' : 'Inactivo'}
-                      </s-badge>
-                    </s-table-cell>
-                  </s-table-row>
-                ))}
-              </s-table-body>
-            </s-table>  
-          </s-section>
-        )}
-      </s-section>
+      <LogisticCenterSection 
+        savedLogisticCenter={savedLogisticCenter}
+      />
+      <CarrierServiceSection 
+        carrierServices={carrierServices || []}
+        baseUrl={baseUrl || ''}
+      />
     </s-page>
   );
 }

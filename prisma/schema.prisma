@@ -70,3 +70,46 @@ model Tax {
   @@map("taxes")
 }
 
+model LogisticCenter {
+  id                  Int       @id @default(autoincrement())
+  externalId          Int       @map("external_id")
+  accessToken         String?   @map("access_token")
+  baseUrl             String?   @map("base_url")
+  name                String
+  address             String
+  detail              String?
+  responsable         String
+  email               String
+  phone               String
+  active              Boolean   @default(true)
+  communeId           Int       @map("commune_id")
+  shop                String
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  @@unique([externalId, shop])
+  @@map("logistic_centers")
+}
+
+model AuditLog {
+  id                  Int       @id @default(autoincrement())
+  shopifyOrderId      String    @map("shopify_order_id")
+  orderName           String?   @map("order_name")
+  shop                String
+  eventType           String    @map("event_type") // "order_paid", "package_created", "shipment_completed", "error"
+  status              String    // "success", "error", "pending", "retry"
+  requestData         String?   @map("request_data") // JSON string
+  responseData        String?   @map("response_data") // JSON string
+  errorMessage        String?   @map("error_message")
+  httpStatus          Int?      @map("http_status")
+  retryCount          Int       @default(0) @map("retry_count")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  @@index([shopifyOrderId])
+  @@index([shop])
+  @@index([eventType])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+

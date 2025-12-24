@@ -47,16 +47,60 @@ export async function getComunasByRegion(region: string): Promise<Commune[]> {
 
 // Funciones de utilidad para usar en la aplicación
 export async function getComunaTarifaByCity(cityName: string): Promise<Commune | null> {
-  const commune = await prisma.commune.findFirst({
-    where: {
-      name: cityName,
-    },
+  if (!cityName || cityName.trim() === '') {
+    return null;
+  }
+
+  // Normalizar nombre de búsqueda: trim, lowercase, quitar acentos, quitar espacios extra
+  const normalizedSearch = cityName.trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Quitar acentos
+    .replace(/\s+/g, ' ') // Normalizar espacios múltiples a uno solo
+    .trim();
+
+  // Obtener todas las comunas y buscar con normalización
+  const allComunas = await prisma.commune.findMany({
     include: {
       tax: true,
     },
   });
-  if (!commune) return null;
-  return commune;
+
+  // Función auxiliar para normalizar nombres
+  const normalizeName = (name: string): string => {
+    return name
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // Quitar acentos
+      .replace(/\s+/g, ' ') // Normalizar espacios múltiples
+      .trim();
+  };
+
+  // Primero intentar búsqueda exacta (case-insensitive, sin acentos, espacios normalizados)
+  let commune = allComunas.find(c => {
+    const normalizedName = normalizeName(c.name);
+    return normalizedName === normalizedSearch;
+  });
+
+  // Si no se encuentra, intentar búsqueda parcial (contiene)
+  // Priorizar cuando el nombre de la comuna contiene el término de búsqueda
+  if (!commune) {
+    const foundCommune = allComunas.find(c => {
+      const normalizedName = normalizeName(c.name);
+      // Si el nombre de la comuna contiene el término de búsqueda (más confiable)
+      if (normalizedName.includes(normalizedSearch)) {
+        return true;
+      }
+      // Si el término de búsqueda contiene el nombre de la comuna (para casos como "Providenci" -> "Providencia")
+      if (normalizedSearch.includes(normalizedName)) {
+        return true;
+      }
+      return false;
+    });
+    commune = foundCommune;
+  }
+
+  return commune || null;
 }
 
 export async function updateRate(idComune: number, data: Partial<Tax>): Promise<Commune[] | null> {
